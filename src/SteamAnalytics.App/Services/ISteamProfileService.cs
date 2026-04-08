@@ -4,5 +4,5 @@ namespace SteamAnalytics.App.Services;
 
 public interface ISteamProfileService
 {
-    ProfileDto GetProfile(string steamId64);
+    Task<ProfileDto> GetProfileAsync(string steamId64);
 }

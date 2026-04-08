@@ -13,6 +13,7 @@ public sealed class MainViewModel : BaseViewModel
 
     private string _inputIdentifier = "https://steamcommunity.com/id/gaben";
     private ProfileDto _profile = ProfileDto.Empty();
+    private string _status = "Готово";
 
     public MainViewModel(ISteamIdResolver idResolver, ISteamProfileService profileService, ISteamAuthService authService)
     {
@@ -20,7 +21,7 @@ public sealed class MainViewModel : BaseViewModel
         _profileService = profileService;
         _authService = authService;
 
-        CheckProfileCommand = new RelayCommand(CheckProfile);
+        CheckProfileCommand = new AsyncRelayCommand(CheckProfileAsync);
         SignInWithSteamCommand = new RelayCommand(SignInWithSteam);
     }
 
@@ -44,15 +45,34 @@ public sealed class MainViewModel : BaseViewModel
         }
     }
 
+    public string Status
+    {
+        get => _status;
+        private set
+        {
+            _status = value;
+            OnPropertyChanged();
+        }
+    }
+
     public ICommand CheckProfileCommand { get; }
     public ICommand SignInWithSteamCommand { get; }
 
-    private void CheckProfile()
+    private async Task CheckProfileAsync()
     {
+        Status = "Проверяем идентификатор...";
         var steamId64 = _idResolver.ResolveToSteamId64(InputIdentifier);
-        Profile = steamId64 is null
-            ? ProfileDto.Error("Не удалось распознать идентификатор Steam.")
-            : _profileService.GetProfile(steamId64);
+
+        if (steamId64 is null)
+        {
+            Profile = ProfileDto.Error("Не удалось распознать идентификатор Steam (или не задан STEAM_API_KEY для vanity URL).");
+            Status = "Ошибка";
+            return;
+        }
+
+        Status = "Загружаем профиль, игры, баны, друзей и инвентарь...";
+        Profile = await _profileService.GetProfileAsync(steamId64);
+        Status = Profile.IsError ? "Ошибка" : "Готово";
     }
 
     private void SignInWithSteam()
